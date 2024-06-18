@@ -1,8 +1,9 @@
 class Cerveza {
 	const property lupulo
-	const property pais
-	const property precio
-	method graduacion() 
+	const property origen
+	const property precioPorLitro
+	
+	method graduacion()
 }
 
 class Rubia inherits Cerveza {
@@ -10,46 +11,68 @@ class Rubia inherits Cerveza {
 }
 
 class Negra inherits Cerveza {
-    override method graduacion() = graduacionReglamentaria.graduacion().min(2 * lupulo)	
+	override method graduacion() = 0.04.min(lupulo * 2)
 }
 
 class Roja inherits Negra {
 	override method graduacion() = super() * 1.25
 }
 
-object graduacionReglamentaria {
-	var property graduacion = 0.04
-}
-
 class Jarra {
-	const property capacidadL
-	const property marca
-	const property carpa
-	method contenidoDeAlcohol() = capacidadL * marca.graduacion()
+	const property capacidadJarra
+	const property marca = new Negra(lupulo = 0.03, origen = "arg", precioPorLitro = 400)
+	var property carpa
+	
+	method contenidoAlcohol() = capacidadJarra * marca.graduacion()
+	
+	method precioDeLaVenta() = capacidadJarra * marca.precioPorLitro() * carpa.recargo().recargo(carpa)
 }
 
 class Persona {
+	var property jarrasCompradas = []
 	var property peso
-	const property jarrasCompradas = []
 	var property musicaTradicional
-	var property nivelDeAguante
+	var property aguante
+	
 	const property nacionalidad
-	method comprarJarra(cerveza){
-		jarrasCompradas.add(cerveza)
+	
+	method comprarCerveza(cerveza) = jarrasCompradas.add(cerveza)
+	
+	method totalAlcohol() {
+		return jarrasCompradas.sum({
+			c => c.contenidoAlcohol()
+		})
 	}
-	method totalDeAlcohol() = jarrasCompradas.sum({c => c.contenidoDeAlcohol()})
-	method estaEbria() =  self.totalDeAlcohol() * peso > nivelDeAguante
-	method leGusta(cerveza) 
-	method quiereEntrar(carpa) = self.leGusta(carpa.vendeMarca()) and carpa.tieneBanda() == musicaTradicional
+	
+	method estaEbria() = self.totalAlcohol() * peso > aguante
+	
+	method leGusta(cerveza)
+	
+	method quiereEntrar(carpa) {
+		return self.leGusta(carpa.marcaCerveza()) and self.musicaTradicional() == carpa.tieneBanda()
+	}
+	
+	method ingresar(carpa) {
+		if (self.puedeEntrar(carpa)) {
+			carpa.ingresar(self)
+		} else {
+			self.error("La persona no puede entrar en la carpa")
+		}
+	}
+	
+	method puedeEntrar(carpa) {
+		return self.quiereEntrar(carpa) and carpa.dejaIngresar(self) 
+	}
+	
 	 method jarrasConMasDe1Litro() {
     	return jarrasCompradas.all({
-    		c => c.capacidadL() >= 1
+    		c => c.capacidadJarra() >= 1
     	})
     }
     
     method esPatriota() {
     	return jarrasCompradas.all({
-    		c => c.marca().pais() == nacionalidad
+    		c => c.marca().origen() == nacionalidad
     	})
     }
     
@@ -95,13 +118,13 @@ class Persona {
 	
 	method gastoTotalCerveza() {
 		return jarrasCompradas.sum({
-			c => c.precio()
+			c => c.precioDeLaVenta()
 		})
 	}
 	
 	method jarraMasCara() {
 		return jarrasCompradas.max({
-			c => c.precio()
+			c => c.precioDeLaVenta()
 		})
 	}
 }
@@ -110,7 +133,7 @@ class Belga inherits Persona {
 	override method leGusta(cerveza) = cerveza.lupulo() > 0.04
 }
 
-class Checos inherits Persona {
+class Checo inherits Persona {
 	override method leGusta(cerveza) = cerveza.graduacion() > 0.08
 }
 
@@ -118,16 +141,18 @@ class Aleman inherits Persona {
 	override method leGusta(cerveza) = true
 }
 
-class Carpa {
-	const property limite
-	var property tieneBanda
-	const property vendeMarca
+class Carpa  {
+    var property capacidadDeCarpa
+    var property tieneBanda
     var property personasDentro = []
     var property recargo
     
+    const property marcaCerveza
+
     method limiteMaxDeCarpa() {
-        return limite == 40
+        return capacidadDeCarpa == 40
     }
+    
     method ingresar(persona) {
     	personasDentro.add(persona)
     }
@@ -137,12 +162,12 @@ class Carpa {
     }
     
     method dejaIngresar(persona) {
-    	return limite > personasDentro.size() and not persona.estaEbria()
+    	return capacidadDeCarpa > personasDentro.size() and not persona.estaEbria()
     }
     
     method servirCerveza(persona, litros) {
     	if (personasDentro.contains(persona)) {
-    		persona.comprarJarra(new Jarra(capacidadL= litros, marca = vendeMarca, carpa = self))
+    		persona.comprarCerveza(new Jarra(capacidadJarra = litros, marca = marcaCerveza, carpa = self))
     	} else {
     		self.error("La persona no está en la carpa")
     	}
